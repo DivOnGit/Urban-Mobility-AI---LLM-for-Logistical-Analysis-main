@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYC Taxi AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Inter',sans-serif;background:#0a0a0a;color:#e8e8e8;display:flex;flex-direction:column;height:100vh;}
+
+/* ── TOPBAR ── */
+.topbar{
+  height:56px;display:flex;align-items:center;padding:0 20px;gap:12px;
+  background:#111;border-bottom:1px solid #222;flex-shrink:0;
+}
+.tb-logo{
+  width:36px;height:36px;border-radius:10px;
+  background:linear-gradient(135deg,#f97316,#7c3aed);
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  box-shadow:0 2px 12px rgba(249,115,22,0.3);flex-shrink:0;
+}
+.tb-info{display:flex;flex-direction:column;}
+.tb-title{font-size:15px;font-weight:700;color:#fff;line-height:1.2;}
+.tb-sub{font-size:10px;color:#555;letter-spacing:0.5px;}
+.tb-right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.tb-badge{
+  font-size:9px;padding:3px 9px;border-radius:20px;
+  font-family:'IBM Plex Mono',monospace;letter-spacing:0.5px;
+}
+.badge-groq{background:rgba(249,115,22,0.12);color:#f97316;border:1px solid rgba(249,115,22,0.25);}
+.badge-claude{background:rgba(124,58,237,0.12);color:#a78bfa;border:1px solid rgba(124,58,237,0.25);}
+.tb-status{display:flex;align-items:center;gap:5px;font-size:11px;color:#555;}
+.tb-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e;transition:all .3s;}
+.btn-new{
+  height:30px;padding:0 12px;
+  border:1px solid #2a2a2a;background:transparent;
+  border-radius:7px;cursor:pointer;font-size:11px;
+  color:#666;transition:all .13s;font-family:'Inter',sans-serif;
+  display:flex;align-items:center;gap:5px;
+}
+.btn-new:hover{background:#1a1a1a;color:#ccc;border-color:#444;}
+.btn-sb{
+  width:32px;height:32px;border:1px solid #2a2a2a;
+  background:transparent;border-radius:8px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;color:#555;transition:all .13s;
+}
+.btn-sb:hover{background:#1a1a1a;color:#ccc;}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:272px;
+  background:#0f0f0f;border-right:1px solid #1e1e1e;
+  display:flex;flex-direction:column;
+  overflow-y:auto;overflow-x:hidden;
+  z-index:200;transform:translateX(-100%);
+  transition:transform .25s cubic-bezier(.4,0,.2,1);
+  box-shadow:6px 0 30px rgba(0,0,0,.5);
+}
+.sidebar.open{transform:translateX(0);}
+.sidebar::-webkit-scrollbar{width:3px;}
+.sidebar::-webkit-scrollbar-thumb{background:#222;border-radius:2px;}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:199;backdrop-filter:blur(2px);}
+.overlay.show{display:block;}
+
+.sb-header{
+  padding:16px 14px 12px;
+  border-bottom:1px solid #1e1e1e;
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+}
+.sb-logo{display:flex;align-items:center;gap:8px;}
+.sb-logo-icon{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#f97316,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:14px;}
+.sb-logo-text{font-size:14px;font-weight:600;color:#fff;}
+.sb-logo-text span{color:#f97316;}
+.sb-close{width:26px;height:26px;border:1px solid #222;background:transparent;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:#555;transition:all .12s;}
+.sb-close:hover{background:#1a1a1a;color:#ccc;}
+
+.sb-sec{padding:12px 12px 8px;border-bottom:1px solid #1a1a1a;flex-shrink:0;}
+.sb-lbl{font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;color:#444;text-transform:uppercase;margin-bottom:8px;}
+.sb-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.sb-stat{background:#161616;border:1px solid #222;border-radius:8px;padding:8px 10px;position:relative;overflow:hidden;}
+.sb-stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--c,#f97316);border-radius:8px 8px 0 0;}
+.sb-stat-val{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;color:var(--c,#f97316);line-height:1;}
+.sb-stat-lbl{font-size:8px;color:#444;margin-top:3px;text-transform:uppercase;letter-spacing:.5px;}
+
+.qp{display:flex;align-items:flex-start;gap:7px;padding:7px 8px;border-radius:7px;cursor:pointer;font-size:11.5px;color:#555;transition:all .12s;line-height:1.35;}
+.qp:hover{background:#161616;color:#ccc;}
+.qp-ic{font-size:13px;flex-shrink:0;margin-top:1px;}
+
+.sb-chart-wrap{padding:10px 12px 8px;border-bottom:1px solid #1a1a1a;flex-shrink:0;}
+.sb-chart-box{height:110px;position:relative;}
+
+.sb-zones{padding:10px 12px 10px;display:flex;flex-direction:column;}
+.zi{width:100%;padding:7px 10px;border:1px solid #222;border-radius:7px;font-size:11px;font-family:'Inter',sans-serif;outline:none;background:#161616;color:#ccc;transition:border-color .13s;}
+.zi:focus{border-color:#f97316;}
+.zi::placeholder{color:#333;}
+.zl{margin-top:7px;max-height:180px;overflow-y:auto;}
+.zl::-webkit-scrollbar{width:2px;}
+.zl::-webkit-scrollbar-thumb{background:#222;}
+.zt{display:inline-block;font-size:9.5px;padding:3px 8px;margin:2px;border:1px solid #222;border-radius:20px;color:#555;cursor:pointer;background:#111;transition:all .1s;}
+.zt:hover{border-color:#f97316;color:#f97316;background:rgba(249,115,22,.06);}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#0a0a0a;}
+
+/* ── MESSAGES ── */
+.msgs{flex:1;overflow-y:auto;background:#0a0a0a;}
+.msgs::-webkit-scrollbar{width:4px;}
+.msgs::-webkit-scrollbar-thumb{background:#1e1e1e;border-radius:2px;}
+
+/* Welcome */
+.welcome{
+  height:100%;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:40px 24px;text-align:center;
+}
+.wel-logo{width:70px;height:70px;border-radius:20px;margin:0 auto 18px;background:linear-gradient(135deg,#f97316,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:32px;box-shadow:0 4px 24px rgba(249,115,22,0.25);}
+.wel-title{font-size:26px;font-weight:700;color:#fff;margin-bottom:6px;line-height:1.2;}
+.wel-title em{font-style:normal;color:#f97316;}
+.wel-sub{font-size:13px;color:#555;line-height:1.65;max-width:400px;margin-bottom:28px;}
+.wel-apis{display:flex;gap:8px;justify-content:center;margin-bottom:24px;}
+.wel-api{font-size:10px;padding:4px 12px;border-radius:20px;font-family:'IBM Plex Mono',monospace;}
+.sug-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:460px;width:100%;}
+.sug{padding:12px 14px;text-align:left;border:1px solid #1e1e1e;border-radius:10px;cursor:pointer;transition:all .15s;background:#111;}
+.sug:hover{border-color:#f97316;background:rgba(249,115,22,.06);}
+.sug-title{font-size:12px;font-weight:600;color:#fff;margin-bottom:2px;}
+.sug-desc{font-size:10px;color:#444;line-height:1.35;}
+
+/* Message rows */
+.msg-row{
+  display:flex;gap:10px;align-items:flex-start;
+  max-width:740px;margin:0 auto;width:100%;
+  padding:14px 20px;animation:mIn .2s ease;
+}
+@keyframes mIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.msg-row.user{flex-direction:row-reverse;padding:10px 20px;}
+.msg-row.ai{flex-direction:row;}
+
+/* Avatars */
+.av{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;margin-top:2px;}
+.av-ai{background:linear-gradient(135deg,#f97316,#7c3aed);box-shadow:0 2px 10px rgba(249,115,22,.3);}
+.av-user{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:12px;font-weight:700;font-family:'Inter',sans-serif;box-shadow:0 2px 10px rgba(124,58,237,.3);}
+
+/* Content */
+.msg-content{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0;}
+.ai-name{font-size:11px;font-weight:600;color:#444;display:flex;align-items:center;gap:6px;margin-bottom:3px;}
+.ai-name-dot{width:5px;height:5px;border-radius:50%;background:#f97316;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.ai-name-badge{font-size:8px;padding:1px 6px;border-radius:10px;font-family:'IBM Plex Mono',monospace;}
+
+/* Bubbles */
+.user-bub{
+  background:linear-gradient(135deg,#7c3aed,#4f46e5);
+  color:#fff;padding:11px 15px;
+  border-radius:14px 14px 3px 14px;
+  font-size:14px;line-height:1.6;
+  max-width:78%;word-break:break-word;
+  box-shadow:0 2px 12px rgba(124,58,237,.25);
+  align-self:flex-end;
+}
+.ai-bub{font-size:13.5px;line-height:1.8;color:#ccc;word-break:break-word;}
+.ai-bub strong{color:#fff;font-weight:600;}
+.ai-bub h3{font-size:14px;font-weight:600;color:#fff;margin:12px 0 5px;padding-bottom:4px;border-bottom:1px solid #1e1e1e;}
+.ai-bub code{font-family:'IBM Plex Mono',monospace;font-size:11.5px;background:#161616;padding:2px 6px;border-radius:4px;color:#4ade80;border:1px solid #222;}
+.ai-bub .li{padding:3px 0 3px 14px;border-left:2px solid #222;margin:2px 0;color:#aaa;}
+.msg-img{max-width:240px;max-height:160px;border-radius:10px;border:1px solid #222;display:block;margin-bottom:6px;}
+.v-tag{display:inline-flex;align-items:center;gap:4px;font-size:9px;padding:2px 7px;border-radius:20px;background:rgba(249,115,22,.1);color:#f97316;border:1px solid rgba(249,115,22,.2);align-self:flex-end;margin-bottom:4px;}
+
+/* Chart block */
+.chart-blk{background:#0f0f0f;border:1px solid #1e1e1e;border-radius:12px;padding:14px;margin-top:10px;max-width:520px;}
+.chart-blk-title{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1.5px;color:#444;text-transform:uppercase;margin-bottom:10px;}
+
+/* Actions */
+.msg-acts{display:flex;gap:4px;margin-top:8px;}
+.ma{font-size:10px;padding:3px 9px;border:1px solid #1e1e1e;border-radius:5px;background:transparent;color:#444;cursor:pointer;transition:all .12s;}
+.ma:hover{border-color:#555;color:#aaa;background:#111;}
+.ma.speak-on{border-color:#f97316;color:#f97316;background:rgba(249,115,22,.08);}
+
+/* Typing */
+.typing-row{max-width:740px;margin:0 auto;width:100%;padding:12px 20px;display:flex;gap:10px;align-items:flex-start;}
+.typing-content{display:flex;flex-direction:column;gap:5px;}
+.typing-name{font-size:10px;color:#444;font-weight:600;letter-spacing:.3px;}
+.typing-dots{display:flex;gap:4px;align-items:center;}
+.dot{width:7px;height:7px;border-radius:50%;background:#1e1e1e;animation:dot 1.2s infinite;}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+@keyframes dot{0%,60%,100%{transform:translateY(0);opacity:.3}30%{transform:translateY(-5px);opacity:1;background:#f97316}}
+
+/* ── INPUT AREA ── */
+.input-area{padding:10px 0 16px;flex-shrink:0;background:#0a0a0a;border-top:1px solid #161616;}
+.input-inner{max-width:740px;margin:0 auto;padding:0 20px;}
+
+/* Voice bar */
+.vbar{display:none;align-items:center;gap:10px;padding:8px 14px;margin-bottom:8px;background:rgba(249,115,22,.05);border:1px solid rgba(249,115,22,.15);border-radius:10px;}
+.vbar.on{display:flex;}
+.vws{display:flex;gap:2px;align-items:center;height:18px;}
+.vw{width:3px;border-radius:2px;background:#f97316;animation:vw .9s ease-in-out infinite;}
+.vw:nth-child(1){height:30%}.vw:nth-child(2){height:65%;animation-delay:.1s}.vw:nth-child(3){height:100%;animation-delay:.2s}.vw:nth-child(4){height:70%;animation-delay:.3s}.vw:nth-child(5){height:40%;animation-delay:.4s}
+@keyframes vw{0%,100%{transform:scaleY(.5)}50%{transform:scaleY(1)}}
+.vbar-lbl{font-size:9px;font-weight:600;color:#f97316;font-family:'IBM Plex Mono',monospace;}
+.vbar-live{font-size:12px;color:#666;flex:1;font-style:italic;}
+.vstop{font-size:9px;padding:4px 10px;border:1px solid rgba(249,115,22,.3);border-radius:5px;background:transparent;color:#f97316;cursor:pointer;}
+
+/* File previews */
+.fprevs{display:none;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.fprevs.on{display:flex;}
+.fpi{position:relative;}
+.fp-img{width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #222;display:block;}
+.fp-file{width:54px;height:54px;border-radius:8px;border:1px solid #222;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
+.fp-fi{font-size:18px;}.fp-fn{font-size:6px;color:#444;text-align:center;padding:0 2px;word-break:break-all;}
+.fp-rm{position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:#ef4444;color:#fff;border:1.5px solid #0a0a0a;font-size:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+
+/* Input box */
+.input-box{
+  border:1.5px solid #1e1e1e;border-radius:14px;
+  background:#111;
+  transition:border-color .15s,box-shadow .15s;overflow:hidden;
+}
+.input-box:focus-within{border-color:#f97316;background:#131313;box-shadow:0 0 0 3px rgba(249,115,22,.1),0 4px 20px rgba(0,0,0,.4);}
+
+textarea#ci{
+  width:100%;border:none;outline:none;background:transparent;
+  font-family:'Inter',sans-serif;font-size:14px;color:#ddd;
+  resize:none;line-height:1.6;min-height:28px;max-height:180px;
+  padding:13px 15px 6px;display:block;
+}
+textarea#ci::placeholder{color:#333;}
+
+.ibar{display:flex;align-items:center;padding:6px 10px 10px;gap:4px;border-top:1px solid #1a1a1a;}
+.ibar-left{display:flex;gap:2px;align-items:center;}
+.ib{width:32px;height:32px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:#333;transition:all .12s;position:relative;}
+.ib:hover{background:#1a1a1a;color:#888;}
+.ib.voice-on{background:#f97316;color:#fff;animation:vp 1s ease infinite;}
+@keyframes vp{0%,100%{box-shadow:0 0 0 0 rgba(249,115,22,.4)}50%{box-shadow:0 0 0 6px rgba(249,115,22,0)}}
+.tip{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1a1a1a;color:#ccc;font-size:9px;padding:3px 8px;border-radius:5px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;border:1px solid #2a2a2a;}
+.ib:hover .tip{opacity:1;}
+.ibar-right{margin-left:auto;}
+
+/* Send button */
+.send-btn{
+  width:36px;height:36px;
+  background:linear-gradient(135deg,#f97316,#ea6800);
+  border:none;border-radius:10px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .14s;box-shadow:0 2px 10px rgba(249,115,22,.3);
+}
+.send-btn:hover{transform:scale(1.06);box-shadow:0 4px 16px rgba(249,115,22,.4);}
+.send-btn:disabled{background:#1a1a1a;cursor:not-allowed;transform:none;box-shadow:none;}
+.send-btn svg{width:15px;height:15px;fill:#fff;}
+.send-btn:disabled svg{fill:#333;}
+
+.ihint{text-align:center;font-size:9px;color:#2a2a2a;margin-top:7px;letter-spacing:.3px;}
+
+input[type=file]{display:none;}
+
+/* Image mode indicator */
+.img-mode-tag{
+  display:none;align-items:center;gap:6px;
+  padding:5px 12px;margin-bottom:8px;
+  background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.2);
+  border-radius:8px;font-size:11px;color:#a78bfa;
+  font-family:'IBM Plex Mono',monospace;
+}
+.img-mode-tag.on{display:flex;}
+</style>
+</head>
+<body>
+
+<!-- OVERLAY -->
+<div class="overlay" id="ov" onclick="closeSB()"></div>
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="sb">
+  <div class="sb-header">
+    <div class="sb-logo">
+      <div class="sb-logo-icon">🚕</div>
+      <div class="sb-logo-text">NYC <span>Taxi</span> AI</div>
+    </div>
+    <button class="sb-close" onclick="closeSB()">✕</button>
+  </div>
+
+  <div class="sb-sec">
+    <div class="sb-lbl">Dataset</div>
+    <div class="sb-stat-grid">
+      <div class="sb-stat" style="--c:#f97316"><div class="sb-stat-val">10K</div><div class="sb-stat-lbl">Trips</div></div>
+      <div class="sb-stat" style="--c:#7c3aed"><div class="sb-stat-val">$24.34</div><div class="sb-stat-lbl">Avg Fare</div></div>
+      <div class="sb-stat" style="--c:#22c55e"><div class="sb-stat-val">2.94mi</div><div class="sb-stat-lbl">Avg Dist</div></div>
+      <div class="sb-stat" style="--c:#eab308"><div class="sb-stat-val">120</div><div class="sb-stat-lbl">Zones</div></div>
+    </div>
+  </div>
+
+  <div class="sb-sec">
+    <div class="sb-lbl">Quick Queries</div>
+    <div class="qp" onclick="sq('What is the average fare from JFK Airport to Manhattan?')"><span class="qp-ic">💰</span>JFK to Manhattan fare</div>
+    <div class="qp" onclick="sq('Show me a bar chart of average fares by borough')"><span class="qp-ic">📊</span>Fare chart by borough</div>
+    <div class="qp" onclick="sq('What are the top 10 busiest pickup zones?')"><span class="qp-ic">📍</span>Top pickup zones</div>
+    <div class="qp" onclick="sq('Rush hour fare analysis midnight vs 1am vs 2am')"><span class="qp-ic">🕐</span>Rush hour analysis</div>
+    <div class="qp" onclick="sq('Most expensive routes with stats')"><span class="qp-ic">🗺️</span>Expensive routes</div>
+    <div class="qp" onclick="sq('Compare Manhattan vs Queens vs Brooklyn fares with chart')"><span class="qp-ic">🏙️</span>Borough comparison</div>
+  </div>
+
+  <div class="sb-sec">
+    <div class="sb-lbl">Avg Fare by Borough</div>
+    <div class="sb-chart-box"><canvas id="bc"></canvas></div>
+  </div>
+
+  <div class="sb-sec">
+    <div class="sb-lbl">Trips by Hour</div>
+    <div class="sb-chart-box"><canvas id="hc"></canvas></div>
+  </div>
+
+  <div class="sb-zones">
+    <div class="sb-lbl">Zone Explorer</div>
+    <input class="zi" id="zs" placeholder="Search 120 zones…" oninput="fz()">
+    <div class="zl" id="zl"></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <div class="topbar">
+    <button class="btn-sb" onclick="toggleSB()">☰</button>
+    <div class="tb-logo">🚕</div>
+    <div class="tb-info">
+      <div class="tb-title">NYC Taxi AI</div>
+      <div class="tb-sub">Urban Mobility Intelligence</div>
+    </div>
+    <div class="tb-right">
+      <span class="tb-badge badge-groq">Llama 3.3 70B</span>
+      <span class="tb-badge badge-claude">Claude Vision</span>
+      <div class="tb-status"><div class="tb-dot" id="tdot"></div><span id="ttxt">Ready</span></div>
+      <button class="btn-new" onclick="newChat()">✏️ New</button>
+    </div>
+  </div>
+
+  <div class="msgs" id="msgs">
+    <div class="welcome" id="ws">
+      <div class="wel-logo">🚕</div>
+      <div class="wel-title">NYC Taxi <em>AI</em></div>
+      <div class="wel-sub">Ask about 10,000 NYC taxi trips. Upload images or charts — I'll analyze them with Claude Vision. Text queries use Llama 3.3 70B.</div>
+      <div class="wel-apis">
+        <span class="wel-api" style="background:rgba(249,115,22,.12);color:#f97316;border:1px solid rgba(249,115,22,.25)">🔥 Groq · Llama 3.3 70B</span>
+        <span class="wel-api" style="background:rgba(167,139,250,.12);color:#a78bfa;border:1px solid rgba(167,139,250,.25)">👁️ Claude · Vision</span>
+      </div>
+      <div class="sug-grid">
+        <div class="sug" onclick="sq('Show me a bar chart of fares by borough')"><div class="sug-title">📊 Fare Charts</div><div class="sug-desc">Live charts from real data</div></div>
+        <div class="sug" onclick="startVoice()"><div class="sug-title">🎤 Voice Query</div><div class="sug-desc">Speak your question</div></div>
+        <div class="sug" onclick="document.getElementById('iu').click()"><div class="sug-title">🖼️ Analyze Image</div><div class="sug-desc">Upload any map or chart</div></div>
+        <div class="sug" onclick="sq('What are the top 5 most expensive routes?')"><div class="sug-title">🗺️ Route Intel</div><div class="sug-desc">Fares & distances</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INPUT -->
+  <div class="input-area">
+    <div class="input-inner">
+
+      <div class="vbar" id="vbar">
+        <div class="vws"><div class="vw"></div><div class="vw"></div><div class="vw"></div><div class="vw"></div><div class="vw"></div></div>
+        <span class="vbar-lbl">● REC</span>
+        <span class="vbar-live" id="vlive">Speak your question…</span>
+        <button class="vstop" onclick="stopVoice()">⏹ Stop</button>
+      </div>
+
+      <div class="img-mode-tag" id="imgModeTag">
+        👁️ Claude Vision mode — image will be analyzed by Claude AI
+      </div>
+
+      <div class="fprevs" id="fps"></div>
+
+      <div class="input-box">
+        <textarea id="ci" placeholder="Ask about NYC taxi data… or upload an image 🖼️" rows="1" onkeydown="hk(event)" oninput="ar(this)"></textarea>
+        <div class="ibar">
+          <div class="ibar-left">
+            <button class="ib" id="vbtn" onclick="tv()">🎤<span class="tip">Voice</span></button>
+            <button class="ib" onclick="triggerImg()">🖼️<span class="tip">Upload image (Claude Vision)</span></button>
+            <button class="ib" onclick="document.getElementById('fu').click()">📎<span class="tip">Attach file</span></button>
+            <button class="ib" onclick="sq('Show me a bar chart of average fares by borough')">📊<span class="tip">Generate chart</span></button>
+          </div>
+          <div class="ibar-right">
+            <button class="send-btn" id="sbtn" onclick="send()">
+              <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="ihint">Enter to send &nbsp;·&nbsp; Shift+Enter new line &nbsp;·&nbsp; 🖼️ image → Claude Vision &nbsp;·&nbsp; 📊 text → Llama 3.3</div>
+    </div>
+  </div>
+
+  <input type="file" id="iu" accept="image/*" multiple onchange="hf(event,'image')">
+  <input type="file" id="fu" accept=".csv,.txt,.pdf,.json" multiple onchange="hf(event,'file')">
+</div>
+
+<script>
+// ══════════════════════════════════════
+// CONFIG — paste your keys here
+// ══════════════════════════════════════
+const GROQ_KEY    = 'XXXXXXXXXXXXXXXXXXXXXXXX';
+const GROQ_MODEL   = 'llama-3.3-70b-versatile';
+const CLAUDE_MODEL = 'claude-sonnet-4-20250514';
+
+// ══════════════════════════════════════
+// ZONES
+// ══════════════════════════════════════
+const ZONES = ["Alphabet City","Astoria","Battery Park City","Bay Ridge","Bedford","Bloomingdale","Boerum Hill","Brooklyn Heights","Bushwick North","Bushwick South","Carroll Gardens","Central Harlem","Central Harlem North","Central Park","Chinatown","Clinton East","Clinton Hill","Clinton West","Cobble Hill","Crown Heights North","DUMBO/Vinegar Hill","Downtown Brooklyn/MetroTech","East Chelsea","East Harlem North","East Harlem South","East Village","East Williamsburg","Financial District North","Financial District South","Flatiron","Forest Hills","Fort Greene","Garment District","Gramercy","Greenpoint","Greenwich Village North","Greenwich Village South","JFK Airport","Kips Bay","LaGuardia Airport","Lenox Hill East","Lenox Hill West","Lincoln Square East","Lincoln Square West","Little Italy/NoLiTa","Long Island City/Hunters Point","Long Island City/Queens Plaza","Lower East Side","Manhattan Valley","Meatpacking/West Village West","Midtown Center","Midtown East","Midtown North","Midtown South","Morningside Heights","Murray Hill","Park Slope","Penn Station/Madison Sq West","Prospect Heights","SoHo","Stuy Town/Peter Cooper Village","Times Sq/Theatre District","Two Bridges/Seward Park","UN/Turtle Bay South","Union Sq","Upper East Side North","Upper East Side South","Upper West Side North","Upper West Side South","Washington Heights North","Washington Heights South","West Chelsea/Hudson Yards","West Village","Williamsburg (North Side)","Williamsburg (South Side)","Windsor Terrace","Yorkville East","Yorkville West"];
+
+// ══════════════════════════════════════
+// SYSTEM PROMPTS
+// ══════════════════════════════════════
+const SYS_TEXT = `You are an expert NYC Yellow Taxi AI analyst with full access to 10,000 NYC TLC Yellow Taxi trips (June 2025, overnight 10pm-3am).
+
+DATASET: 10,000 trips | Avg fare $24.34 | Avg dist 2.94mi | Avg tip $4.22
+BOROUGHS: Manhattan 9,313 (93%) | Queens 553 | Brooklyn 114 | Bronx 7
+FARES: Manhattan $22.47 | Queens $54.93 | Brooklyn $27.87 | Bronx $33.26
+PAYMENT: Credit 87.2% | Cash 8.4%
+HOURLY: 12am=5,064 trips (peak) | 1am=4,046 | 2am=869
+AIRPORTS: JFK avg $79.45 (13.2mi, 454 trips) | LaGuardia avg $56.32 (9.45mi, 99 trips)
+TOP ZONES: East Village 1,075 | West Village 811 | GV South 635 | Lower East Side 551 | JFK 454
+TOP ROUTES: EV->Gramercy 66 trips $19.88 | EV->Murray Hill 62 trips $22.31 | WV->EV 61 trips $20.12
+
+CHART RULE — VERY IMPORTANT:
+When user asks for chart/graph/bar/pie/visualization, you MUST end your response with EXACTLY this on one line:
+CHART_DATA:{"type":"bar","title":"Title Here","labels":["A","B","C"],"datasets":[{"label":"Value","data":[1,2,3],"colors":["#f97316","#7c3aed","#22c55e"]}]}
+
+Use **bold** for key numbers. Keep responses clear and data-driven.`;
+
+const SYS_VISION = `You are an expert NYC Yellow Taxi AI analyst with computer vision capabilities.
+
+When analyzing images:
+1. Describe EXACTLY what you see in the image (map, chart, photo, etc.)
+2. If it shows a map - identify the region/city/country accurately
+3. If it shows a chart - explain the data shown
+4. Connect your analysis to NYC taxi data context when relevant
+5. Be specific and accurate - don't confuse India maps with NYC maps, etc.
+
+NYC Dataset context: 10,000 taxi trips, June 2025, Manhattan 93% of trips, Avg fare $24.34, JFK Airport avg $79.45.
+Be honest if an image has nothing to do with NYC taxis.`;
+
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+let conv=[], pf=[], loading=false, rec=null, listening=false, tts=null;
+let hasImages = false;
+
+// ══════════════════════════════════════
+// SIDEBAR
+// ══════════════════════════════════════
+let sbChartsInited = false;
+function toggleSB(){
+  document.getElementById('sb').classList.toggle('open');
+  document.getElementById('ov').classList.toggle('show');
+  if(document.getElementById('sb').classList.contains('open') && !sbChartsInited){
+    setTimeout(initSBCharts, 260);
+    sbChartsInited = true;
+  }
+}
+function closeSB(){
+  document.getElementById('sb').classList.remove('open');
+  document.getElementById('ov').classList.remove('show');
+}
+
+function initSBCharts(){
+  const d={responsive:true,maintainAspectRatio:false,animation:{duration:600},
+    plugins:{legend:{display:false}},
+    scales:{x:{grid:{display:false},ticks:{color:'#333',font:{size:8}}},
+            y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#333',font:{size:8}}}}};
+  new Chart(document.getElementById('bc'),{type:'bar',
+    data:{labels:['Manhattan','Queens','Brooklyn','Bronx'],
+      datasets:[{data:[22.47,54.93,27.87,33.26],
+        backgroundColor:['rgba(249,115,22,.7)','rgba(124,58,237,.7)','rgba(34,197,94,.7)','rgba(234,179,8,.7)'],
+        borderColor:['#f97316','#7c3aed','#22c55e','#eab308'],borderWidth:1.5,borderRadius:4}]},
+    options:{...d,plugins:{...d.plugins,tooltip:{callbacks:{label:c=>`$${c.raw}`}}}}});
+  new Chart(document.getElementById('hc'),{type:'line',
+    data:{labels:['10pm','11pm','12am','1am','2am'],
+      datasets:[{data:[3,17,5064,4046,869],borderColor:'#f97316',backgroundColor:'rgba(249,115,22,.08)',fill:true,tension:.4,pointRadius:3,pointBackgroundColor:'#f97316',borderWidth:2}]},
+    options:{...d,plugins:{...d.plugins,tooltip:{callbacks:{label:c=>`${c.raw} trips`}}}}});
+}
+
+// ══════════════════════════════════════
+// ZONES
+// ══════════════════════════════════════
+function rz(z){document.getElementById('zl').innerHTML=z.map(n=>`<span class="zt" onclick="sq('Tell me about ${n} zone - trips, fare, distance')">${n}</span>`).join('');}
+function fz(){const q=document.getElementById('zs').value.toLowerCase();rz(q?ZONES.filter(z=>z.toLowerCase().includes(q)):ZONES);}
+
+// ══════════════════════════════════════
+// FILES
+// ══════════════════════════════════════
+function triggerImg(){
+  document.getElementById('iu').click();
+}
+
+function hf(e, type){
+  Array.from(e.target.files).forEach(file=>{
+    const r=new FileReader();
+    r.onload=ev=>{
+      const res=ev.target.result;
+      if(type==='image'){
+        pf.push({type:'image',base64:res.split(',')[1],mediaType:file.type,name:file.name,preview:res});
+        hasImages = true;
+        document.getElementById('imgModeTag').classList.add('on');
+        rpv();
+      } else {
+        const tr=new FileReader();
+        tr.onload=te=>{pf.push({type:'file',content:te.target.result.slice(0,3000),name:file.name});rpv();};
+        tr.readAsText(file);
+      }
+    };r.readAsDataURL(file);
+  });e.target.value='';
+}
+function rpv(){
+  const s=document.getElementById('fps');
+  if(!pf.length){s.classList.remove('on');s.innerHTML='';return;}
+  s.classList.add('on');
+  s.innerHTML=pf.map((f,i)=>f.type==='image'
+    ?`<div class="fpi"><img class="fp-img" src="${f.preview}"><button class="fp-rm" onclick="rmf(${i})">✕</button></div>`
+    :`<div class="fpi"><div class="fp-file"><div class="fp-fi">📄</div><div class="fp-fn">${f.name.slice(0,10)}</div></div><button class="fp-rm" onclick="rmf(${i})">✕</button></div>`
+  ).join('');
+}
+function rmf(i){
+  pf.splice(i,1);
+  hasImages = pf.some(f=>f.type==='image');
+  if(!hasImages) document.getElementById('imgModeTag').classList.remove('on');
+  rpv();
+}
+
+// ══════════════════════════════════════
+// VOICE
+// ══════════════════════════════════════
+function initV(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return;
+  rec=new SR();rec.continuous=true;rec.interimResults=true;rec.lang='en-US';
+  rec.onresult=e=>{
+    let fin='',int='';
+    for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)fin+=e.results[i][0].transcript;else int+=e.results[i][0].transcript;}
+    document.getElementById('vlive').textContent=fin||int||'Speak…';
+    if(fin){const ci=document.getElementById('ci');ci.value=fin.trim();ar(ci);}
+  };
+  rec.onerror=e=>{if(e.error!=='aborted')stopVoice();};
+  rec.onend=()=>{if(listening){const t=document.getElementById('ci').value.trim();stopVoice();if(t)setTimeout(send,300);}};
+}
+function tv(){listening?stopVoice():startVoice();}
+function startVoice(){
+  if(!rec){initV();if(!rec){alert('Voice requires Chrome or Edge');return;}}
+  document.getElementById('ci').value='';
+  try{rec.start();}catch(e){rec.stop();setTimeout(()=>rec.start(),300);}
+  listening=true;
+  document.getElementById('vbar').classList.add('on');
+  document.getElementById('vbtn').classList.add('voice-on');
+  document.getElementById('vbtn').innerHTML='⏹<span class="tip">Stop</span>';
+  setSt('Listening…','#f97316');
+}
+function stopVoice(){
+  if(rec){try{rec.stop();}catch(e){}}
+  listening=false;
+  document.getElementById('vbar').classList.remove('on');
+  document.getElementById('vbtn').classList.remove('voice-on');
+  document.getElementById('vbtn').innerHTML='🎤<span class="tip">Voice</span>';
+  setSt('Ready','#22c55e');
+}
+function setSt(t,c){
+  document.getElementById('ttxt').textContent=t;
+  document.getElementById('tdot').style.background=c;
+  document.getElementById('tdot').style.boxShadow=`0 0 6px ${c}`;
+}
+
+// ══════════════════════════════════════
+// TTS
+// ══════════════════════════════════════
+function speak(text,btn){
+  if(!window.speechSynthesis)return;
+  if(tts){window.speechSynthesis.cancel();tts=null;btn.classList.remove('speak-on');btn.textContent='🔊';return;}
+  const u=new SpeechSynthesisUtterance(text.replace(/<[^>]*>/g,'').replace(/\*\*/g,'').slice(0,900));
+  u.rate=0.95;u.onend=()=>{tts=null;btn.classList.remove('speak-on');btn.textContent='🔊';};
+  tts=u;btn.classList.add('speak-on');btn.textContent='⏹';window.speechSynthesis.speak(u);
+}
+
+// ══════════════════════════════════════
+// SEND — routes to Groq (text) or Claude (image)
+// ══════════════════════════════════════
+async function send(){
+  const ci=document.getElementById('ci');
+  const txt=ci.value.trim();
+  if((!txt&&!pf.length)||loading)return;
+
+  const imgs=pf.filter(f=>f.type==='image');
+  const files=pf.filter(f=>f.type==='file');
+  const useVision = imgs.length > 0;
+
+  // Key check
+  if(useVision && CLAUDE_KEY==='YOUR_CLAUDE_API_KEY_HERE'){
+    alert('Image analysis ke liye Claude API key chahiye!\nconsole.anthropic.com pe jaao → API Keys → Create Key\nFile mein CLAUDE_KEY ki jagah paste karo.');
+    return;
+  }
+  if(!useVision && GROQ_KEY==='YOUR_GROQ_API_KEY_HERE'){
+    alert('Text queries ke liye Groq API key chahiye!\nconsole.groq.com pe jaao → API Keys → Create Key\nFile mein GROQ_KEY ki jagah paste karo.');
+    return;
+  }
+
+  document.getElementById('ws').style.display='none';
+
+  let userTxt = txt;
+  files.forEach(f=>{ userTxt += `\n[File: ${f.name}]\n${f.content}`; });
+
+  const wasV=listening;
+  addUser(txt, imgs.map(i=>i.preview), wasV, useVision);
+  conv.push({role:'user', content: userTxt || (useVision ? 'Analyze this image.' : '')});
+
+  ci.value='';ci.style.height='auto';
+  pf=[];rpv();hasImages=false;
+  document.getElementById('imgModeTag').classList.remove('on');
+  if(listening)stopVoice();
+
+  loading=true;document.getElementById('sbtn').disabled=true;
+  const modelLabel = useVision ? 'Claude Vision' : 'Llama 3.3 70B';
+  setSt('Thinking…','#7c3aed');
+  const ty=addTyping(modelLabel);
+
+  try{
+    let reply='';
+
+    if(useVision){
+      // ── CLAUDE API for images ──
+      const imgContents = imgs.map(i=>({
+        type:'image',source:{type:'base64',media_type:i.mediaType,data:i.base64}
+      }));
+      if(userTxt) imgContents.push({type:'text',text:userTxt});
+      else imgContents.push({type:'text',text:'Please analyze this image carefully. Identify what it shows - is it a map? If so, of which region/city/country? Is it a chart? Describe what you see and relate it to NYC taxi context if relevant.'});
+
+      const res=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'x-api-key': CLAUDE_KEY,
+          'anthropic-version':'2023-06-01',
+          'anthropic-dangerous-direct-browser-access':'true'
+        },
+        body:JSON.stringify({
+          model:CLAUDE_MODEL,
+          max_tokens:1200,
+          system:SYS_VISION,
+          messages:[{role:'user',content:imgContents}]
+        })
+      });
+      ty.remove();
+      if(!res.ok){const e=await res.json().catch(()=>({}));addAI(`❌ Claude error: ${e.error?.message||res.status}`,false,null,'Claude Vision');return;}
+      const d=await res.json();
+      reply=d.content.map(b=>b.text||'').join('');
+      addAI(reply,true,null,'Claude Vision');
+
+    } else {
+      // ── GROQ API for text ──
+      const messages=[{role:'system',content:SYS_TEXT}];
+      conv.slice(0,-1).forEach(m=>messages.push({role:m.role,content:typeof m.content==='string'?m.content:String(m.content)}));
+      messages.push({role:'user',content:userTxt});
+
+      const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEY}`},
+        body:JSON.stringify({model:GROQ_MODEL,max_tokens:1500,temperature:0.3,messages})
+      });
+      ty.remove();
+      if(!res.ok){
+        const e=await res.json().catch(()=>({}));
+        if(res.status===401)addAI('❌ Invalid Groq key. console.groq.com se naya key lo.',false,null,'Llama 3.3 70B');
+        else if(res.status===429)addAI('⚠️ Rate limit. Thoda ruko.',false,null,'Llama 3.3 70B');
+        else addAI(`Error ${res.status}: ${e.error?.message||'Unknown'}`,false,null,'Llama 3.3 70B');
+        return;
+      }
+      const d=await res.json();
+      reply=d.choices?.[0]?.message?.content||'';
+
+      // Extract chart
+      let ch=null, clean=reply;
+      const mi=reply.indexOf('CHART_DATA');
+      if(mi!==-1){
+        const st=reply.indexOf('{',mi);
+        if(st!==-1){
+          let depth=0,end=-1;
+          for(let i=st;i<reply.length;i++){
+            if(reply[i]==='{')depth++;
+            else if(reply[i]==='}'){depth--;if(depth===0){end=i;break;}}
+          }
+          if(end!==-1){
+            const js=reply.slice(st,end+1).replace(/\n/g,' ').replace(/\r/g,'');
+            try{ch=JSON.parse(js);}catch(e){try{ch=JSON.parse(js.replace(/'/g,'"').replace(/,\s*([}\]])/g,'$1'));}catch(e2){}}
+            clean=(reply.slice(0,mi)+reply.slice(end+1)).replace(/CHART_DATA[^\n]*/g,'').trim();
+          }else{clean=reply.slice(0,mi).trim();}
+        }else{clean=reply.slice(0,mi).trim();}
+      }
+      clean=clean.replace(/CHART_DATA[\s\S]*/,'').trim();
+
+      // Client-side chart fallback
+      if(!ch){
+        const q=userTxt.toLowerCase();
+        if(q.includes('chart')||q.includes('graph')||q.includes('bar')||q.includes('pie')||q.includes('visual')){
+          if(q.includes('borough')||q.includes('fare')){
+            ch={type:'bar',title:'Avg Fare by Borough',labels:['Manhattan','Queens','Brooklyn','Bronx'],datasets:[{label:'Avg Fare ($)',data:[22.47,54.93,27.87,33.26],colors:['#f97316','#7c3aed','#22c55e','#eab308']}]};
+          }else if(q.includes('hour')||q.includes('time')){
+            ch={type:'line',title:'Trips by Hour',labels:['10pm','11pm','12am','1am','2am'],datasets:[{label:'Trips',data:[3,17,5064,4046,869],colors:['#f97316']}]};
+          }else if(q.includes('zone')||q.includes('pickup')){
+            ch={type:'bar',title:'Top 5 Pickup Zones',labels:['East Village','West Village','GV South','Lower East Side','JFK'],datasets:[{label:'Trips',data:[1075,811,635,551,454],colors:['#f97316','#7c3aed','#22c55e','#eab308','#ef4444']}]};
+          }else if(q.includes('payment')){
+            ch={type:'doughnut',title:'Payment Types',labels:['Credit Card','Cash','Other'],datasets:[{label:'%',data:[87.2,8.4,4.4],colors:['#7c3aed','#f97316','#22c55e']}]};
+          }else if(q.includes('route')){
+            ch={type:'bar',title:'Top Routes by Trips',labels:['EV→Gramercy','EV→Murray Hill','WV→EV','EV→W.Village','GVS→EV'],datasets:[{label:'Trips',data:[66,62,61,49,49],colors:['#f97316','#7c3aed','#22c55e','#eab308','#ef4444']}]};
+          }
+        }
+      }
+
+      addAI(clean,true,ch,'Llama 3.3 70B');
+    }
+
+    conv.push({role:'assistant',content:reply});
+
+  }catch(e){
+    ty.remove();
+    if(e.message.toLowerCase().includes('fetch')||e.message.toLowerCase().includes('network')){
+      addAI(`❌ <strong>Connection Error</strong><br><br>File ko <code>file://</code> se mat kholo!<br><br><strong>Fix:</strong><br>1. Folder mein CMD kholo<br>2. <code>python -m http.server 8080</code><br>3. <code>http://localhost:8080/nyc-taxi-multimodal.html</code>`,false,null,'Error');
+    }else{
+      addAI(`Error: ${e.message}`,false,null,'Error');
+    }
+  }
+
+  loading=false;document.getElementById('sbtn').disabled=false;setSt('Ready','#22c55e');
+}
+
+// ══════════════════════════════════════
+// MESSAGES
+// ══════════════════════════════════════
+function addUser(txt, imgs=[], wasV=false, isImg=false){
+  const m=document.getElementById('msgs');
+  const r=document.createElement('div');r.className='msg-row user';
+  let h='';
+  if(wasV) h+='<div class="v-tag">🎤 Voice</div>';
+  if(isImg) h+='<div class="v-tag" style="background:rgba(167,139,250,.1);color:#a78bfa;border-color:rgba(167,139,250,.25)">👁️ Vision</div>';
+  imgs.forEach(s=>{h+=`<img class="msg-img" src="${s}">`});
+  if(txt) h+=`<div class="user-bub">${esc(txt)}</div>`;
+  r.innerHTML=`<div class="av av-user">U</div><div class="msg-content" style="align-items:flex-end">${h}</div>`;
+  m.appendChild(r);m.scrollTop=m.scrollHeight;
+}
+
+function addAI(txt, showAct=true, chart=null, modelName='Llama 3.3 70B'){
+  const m=document.getElementById('msgs');
+  const r=document.createElement('div');r.className='msg-row ai';
+  const bid='b'+Date.now(), cid='c'+Date.now();
+
+  const isVision = modelName==='Claude Vision';
+  const badgeStyle = isVision
+    ? 'background:rgba(167,139,250,.12);color:#a78bfa;border:1px solid rgba(167,139,250,.25)'
+    : 'background:rgba(249,115,22,.12);color:#f97316;border:1px solid rgba(249,115,22,.25)';
+  const badgeIcon = isVision ? '👁️' : '🔥';
+
+  const acts = showAct ? `<div class="msg-acts">
+    <button class="ma" onclick="speak(document.getElementById('${bid}').innerText,this)">🔊</button>
+    <button class="ma" onclick="navigator.clipboard.writeText(document.getElementById('${bid}').innerText)">📋 Copy</button>
+  </div>` : '';
+
+  const ch = chart ? `<div class="chart-blk"><div class="chart-blk-title">${chart.title||'Chart'}</div><div style="position:relative;height:220px;width:100%"><canvas id="${cid}"></canvas></div></div>` : '';
+
+  r.innerHTML=`
+    <div class="av av-ai">🚕</div>
+    <div class="msg-content">
+      <div class="ai-name">
+        <div class="ai-name-dot"></div>
+        ${modelName}
+        <span class="ai-name-badge" style="${badgeStyle}">${badgeIcon} ${isVision?'Claude':'Groq'}</span>
+      </div>
+      <div class="ai-bub" id="${bid}">${fmt(txt)}</div>
+      ${ch}${acts}
+    </div>`;
+  m.appendChild(r);m.scrollTop=m.scrollHeight;
+  if(chart) setTimeout(()=>drawChart(cid,chart),80);
+}
+
+function addTyping(modelName){
+  const m=document.getElementById('msgs');
+  const r=document.createElement('div');r.className='typing-row';
+  r.innerHTML=`<div class="av av-ai">🚕</div><div class="typing-content"><div class="typing-name">${modelName}</div><div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  m.appendChild(r);m.scrollTop=m.scrollHeight;return r;
+}
+
+// ══════════════════════════════════════
+// CHART
+// ══════════════════════════════════════
+function drawChart(id, data){
+  const ctx=document.getElementById(id);if(!ctx)return;
+  const cols=(data.datasets?.[0]?.colors)||['#f97316','#7c3aed','#22c55e','#eab308','#ef4444'];
+  const labels=data.labels||[];
+  const vals=data.datasets?.[0]?.data||[];
+  const bg=labels.map((_,i)=>cols[i%cols.length]+'cc');
+  const bd=labels.map((_,i)=>cols[i%cols.length]);
+  const isPolar=data.type==='pie'||data.type==='doughnut';
+  try{
+    new Chart(ctx,{
+      type:data.type||'bar',
+      data:{labels,datasets:[{
+        label:data.datasets?.[0]?.label||'',data:vals,
+        backgroundColor:data.type==='line'?cols[0]+'22':bg,
+        borderColor:data.type==='line'?cols[0]:bd,
+        borderWidth:data.type==='line'?2.5:1.5,
+        fill:data.type==='line',tension:.4,
+        borderRadius:data.type==='bar'?6:0,
+        pointRadius:data.type==='line'?5:0,
+        pointBackgroundColor:data.type==='line'?cols[0]:undefined,
+      }]},
+      options:{
+        responsive:true,maintainAspectRatio:false,animation:{duration:600},
+        plugins:{
+          legend:{display:isPolar,labels:{color:'#666',font:{size:11}}},
+          tooltip:{backgroundColor:'#111',titleColor:'#fff',bodyColor:'#aaa',borderColor:'#222',borderWidth:1,callbacks:{label:c=>` ${c.raw}`}}
+        },
+        scales:isPolar?{}:{
+          x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#444',font:{size:10}}},
+          y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#444',font:{size:10}}}
+        }
+      }
+    });
+  }catch(e){console.error('Chart error:',e);}
+}
+
+// ══════════════════════════════════════
+// FORMAT
+// ══════════════════════════════════════
+function fmt(t){
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^## (.+)$/gm,'<h3 style="color:#f97316">$1</h3>')
+    .replace(/^\d+\. (.+)$/gm,'<div class="li">$1</div>')
+    .replace(/^[-•] (.+)$/gm,'<div class="li">• $1</div>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\n\n/g,'<br><br>').replace(/\n/g,'<br>');
+}
+
+function sq(t){closeSB();document.getElementById('ci').value=t;send();}
+function hk(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}
+function ar(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,180)+'px';}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
+
+function newChat(){
+  conv=[];pf=[];rpv();hasImages=false;
+  document.getElementById('imgModeTag').classList.remove('on');
+  if(listening)stopVoice();
+  document.getElementById('msgs').innerHTML=`
+    <div class="welcome" id="ws">
+      <div class="wel-logo">🚕</div>
+      <div class="wel-title">NYC Taxi <em>AI</em></div>
+      <div class="wel-sub">Ask about 10,000 NYC taxi trips. Upload images for Claude Vision analysis.</div>
+      <div class="wel-apis">
+        <span class="wel-api" style="background:rgba(249,115,22,.12);color:#f97316;border:1px solid rgba(249,115,22,.25)">🔥 Groq · Llama 3.3 70B</span>
+        <span class="wel-api" style="background:rgba(167,139,250,.12);color:#a78bfa;border:1px solid rgba(167,139,250,.25)">👁️ Claude · Vision</span>
+      </div>
+      <div class="sug-grid">
+        <div class="sug" onclick="sq('Show me a bar chart of fares by borough')"><div class="sug-title">📊 Fare Charts</div><div class="sug-desc">Live charts from real data</div></div>
+        <div class="sug" onclick="startVoice()"><div class="sug-title">🎤 Voice Query</div><div class="sug-desc">Speak your question</div></div>
+        <div class="sug" onclick="document.getElementById('iu').click()"><div class="sug-title">🖼️ Analyze Image</div><div class="sug-desc">Upload any map or chart</div></div>
+        <div class="sug" onclick="sq('What are the top 5 most expensive routes?')"><div class="sug-title">🗺️ Route Intel</div><div class="sug-desc">Fares and distances</div></div>
+      </div>
+    </div>`;
+  document.getElementById('ci').value='';
+}
+
+// BOOT
+initV();rz(ZONES);
+</script>
+</body>
+</html>
