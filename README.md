@@ -147,7 +147,7 @@ data/merged_taxi_data.csv
 <sub>Urban Mobility AI · Research Project · NYC Taxi Trip Data</sub>
 </div>
 
-## Collaboration
+## `06` Collaboration
 1. Divyam Singh - divyam.lakshya@gmail.com
 2. Mohsin Khan - Mohsinkhanaiml@gmail.com
 3. Vaishnavi Singh - vaishnavisingh79288@gmail.com
