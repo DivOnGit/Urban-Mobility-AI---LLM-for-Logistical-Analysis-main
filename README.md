@@ -1,4 +1,3 @@
-<img width="1640" height="652" alt="image" src="https://github.com/user-attachments/assets/b414ccb3-f1a4-46d6-a758-e71a7a8e7057" /><div align="center">
 
 <sub>RESEARCH PROJECT</sub>
 
