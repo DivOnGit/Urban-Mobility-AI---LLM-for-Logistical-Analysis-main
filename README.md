@@ -1,5 +1,5 @@
 
-<sub>RESEARCH PROJECT</sub>
+
 
 
 # Urban Mobility AI
