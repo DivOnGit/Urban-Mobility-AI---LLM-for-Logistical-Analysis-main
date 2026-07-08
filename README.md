@@ -3,6 +3,7 @@
 <sub>RESEARCH PROJECT</sub>
 
 # Urban Mobility AI
+
 ### *LLM for Logistical Analysis*
 
 A hybrid intelligence assistant combining Large Language Models, Retrieval-Augmented Generation, and structured analytical tools to study urban transportation patterns using NYC taxi trip data.
@@ -144,3 +145,12 @@ data/merged_taxi_data.csv
 <div align="center">
 <sub>Urban Mobility AI · Research Project · NYC Taxi Trip Data</sub>
 </div>
+
+## Collaboration
+1. Divyam Singh - divyam.lakshya@gmail.com
+2. Mohsin Khan - Mohsinkhanaiml@gmail.com
+3. Vaishnavi Singh - vaishnavisingh79288@gmail.com
+4. Samriddhi Chaudhary -
+5. Sirjan Nishad
+
+
