@@ -1,7 +1,3 @@
-
-
-
-
 # Urban Mobility AI
 
 ### *LLM for Logistical Analysis*
