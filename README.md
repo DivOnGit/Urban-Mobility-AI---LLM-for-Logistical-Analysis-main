@@ -147,7 +147,7 @@ data/merged_taxi_data.csv
 1. Divyam Singh - divyam.lakshya@gmail.com
 2. Mohsin Khan - Mohsinkhanaiml@gmail.com
 3. Vaishnavi Singh - vaishnavisingh79288@gmail.com
-4. Samriddhi Chaudhary -
+4. Samriddhi Chaudhary - samriddhichaudhary73@gmail.com
 5. Sirjan Nishad
 
 ---
